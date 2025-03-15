@@ -1,9 +1,11 @@
 import numpy as np
 import torch
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from torchvision import transforms as T
+import cv2 as cv
 from AgeNet.models import Model
 from Facenet.models.mtcnn import MTCNN
+
 
 
 class AgeEstimator:
@@ -41,41 +43,24 @@ class AgeEstimator:
     def plot_box_and_label(
         image, lw, box, label="", color=(128, 128, 128), txt_color=(255, 255, 255)
     ):
-        """Add a labeled bounding box to the image using Pillow."""
-        draw = ImageDraw.Draw(image)
-        
-        # Calculate font size dynamically based on image resolution
-        image_width, image_height = image.size
-        base_font_size = max(image_width, image_height) // 50  # Adjust divisor for scaling
-        try:
-            font = ImageFont.truetype("arial.ttf", size=base_font_size)  # Use a system font
-        except IOError:
-            font = ImageFont.load_default()  # Fallback to default font if "arial.ttf" is not available
-
-        # Draw bounding box
+        """Add a labeled bounding box to the image."""
         p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
-        draw.rectangle([p1, p2], outline=color, width=lw)
-
-        # Draw label inside the bounding box
+        cv.rectangle(image, p1, p2, color, thickness=lw, lineType=cv.LINE_AA)
         if label:
-            # Calculate text size
-            text_width, text_height = draw.textsize(label, font=font)
-            
-            # Position the text inside the bounding box (top-left corner)
-            text_position = (p1[0] + 5, p1[1] + 5)  # Add a small offset (5 pixels) from the top-left corner
-            
-            # Draw a background rectangle for the text
-            draw.rectangle(
-                [text_position, (text_position[0] + text_width, text_position[1] + text_height)],
-                fill=color,
-            )
-            
-            # Draw the text
-            draw.text(
-                text_position,
+            tf = max(lw - 1, 1)
+            w, h = cv.getTextSize(label, 0, fontScale=lw / 3, thickness=tf)[0]
+            outside = p1[1] - h - 3 >= 0
+            p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
+            cv.rectangle(image, p1, p2, color, -1, cv.LINE_AA)
+            cv.putText(
+                image,
                 label,
-                fill=txt_color,
-                font=font,
+                (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
+                0,
+                lw / 3,
+                txt_color,
+                thickness=tf,
+                lineType=cv.LINE_AA,
             )
 
     def padding_face(self, box, padding=10):
@@ -107,39 +92,20 @@ class AgeEstimator:
         genders = torch.round(genders)
         ages = torch.round(ages).long()
 
-        # Check if any face is below 18 years old
-        below_18 = any(age < 18 for age in ages)
-        if below_18:
-            # Add a visual alert to the image
-            draw = ImageDraw.Draw(image)
-            alert_text = "Alert: Person below 18 years old detected!"
-            font = ImageFont.load_default()
-            text_width, text_height = draw.textsize(alert_text, font=font)
-            draw.rectangle(
-                [(10, 10), (10 + text_width + 10, 10 + text_height + 10)],
-                fill=(255, 0, 0),  # Red background
-            )
-            draw.text(
-                (15, 15),
-                alert_text,
-                fill=(255, 255, 255),  # White text
-                font=font,
-            )
-
         for i, box in enumerate(bboxes):
             box = np.clip(box, 0, np.inf).astype(np.uint32)
             label = (
                 f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
             )
             self.plot_box_and_label(
-                image,
+                ndarray_image,
                 max(ndarray_image.shape) // 400,
                 box,
                 label,
                 color=(255, 0, 0),
             )
 
-        return np.array(image)
+        return ndarray_image
 
     def predict(self, img_path, min_prob=0.9):
         """Process an image file for predictions."""
@@ -169,25 +135,6 @@ class AgeEstimator:
         genders = torch.round(genders)
         ages = torch.round(ages).long()
 
-        # Check if any face is below 18 years old
-        below_18 = any(age < 18 for age in ages)
-        if below_18:
-            # Add a visual alert to the image
-            draw = ImageDraw.Draw(image)
-            alert_text = "Alert: Person below 18 years old detected!"
-            font = ImageFont.load_default()
-            text_width, text_height = draw.textsize(alert_text, font=font)
-            draw.rectangle(
-                [(10, 10), (10 + text_width + 10, 10 + text_height + 10)],
-                fill=(255, 0, 0),  # Red background
-            )
-            draw.text(
-                (15, 15),
-                alert_text,
-                fill=(255, 255, 255),  # White text
-                font=font,
-            )
-
         for i, box in enumerate(bboxes):
             box = np.clip(box, 0, np.inf).astype(np.uint32)
             thickness = max(image_shape) // 400
@@ -196,7 +143,8 @@ class AgeEstimator:
                 f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
             )
             self.plot_box_and_label(
-                image, thickness, box, label, color=(255, 0, 0)
+                ndarray_image, thickness, box, label, color=(255, 0, 0)
             )
 
-        return np.array(image)
+        return ndarray_image
+
