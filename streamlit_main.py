@@ -10,6 +10,7 @@ from age_estimator import AgeEstimator  # Ensure 'your_script' is the filename c
 
 
 def download_weights():
+    os.mkdir("weights", exist_ok=True)  # Create a directory to store the weights
     model_path = "weights/weights.pt"
     if not os.path.exists(model_path):  # Check if file already exists
         url = "https://drive.google.com/uc?id=1ZVeWifvJ6OTvqk7UGwLLVpVNRb4FRqiI"
