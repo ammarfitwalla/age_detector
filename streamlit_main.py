@@ -7,7 +7,7 @@ import gdown
 import os
 
 # Import your AgeEstimator class
-from age_estimator import AgeEstimator  # Ensure 'age_estimator.py' contains AgeEstimator class
+from age_estimator_cv2 import AgeEstimator  # Ensure 'age_estimator.py' contains AgeEstimator class
 
 
 def download_weights():
