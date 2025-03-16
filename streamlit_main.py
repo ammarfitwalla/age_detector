@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import streamlit as st
 import av
@@ -59,31 +60,62 @@ if option == "Upload Image":
 
 ### **🔹 2️⃣ Live Webcam Mode**
 elif option == "Live Webcam":
+    # st.write("📷 **Turn on your webcam to detect age in real-time**")
+
+    # # WebRTC Configuration (For better performance)
+    # rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+
+    # # Define Video Processor for Webcam Streaming
+    # class AgeDetectionProcessor(VideoProcessorBase):
+    #     def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+    #         # Convert frame to PIL image
+    #         # img_pil = Image.fromarray(frame.to_ndarray(format="rgb24"))  # Convert to RGB format
+
+    #         # # Predict Age using your model
+    #         # processed_img = model.predict_frame(np.array(img_pil))
+
+    #         # # Convert back to PIL and then NumPy
+    #         # processed_img_pil = Image.fromarray(processed_img)
+
+    #         # # Convert PIL image back to OpenCV format for WebRTC (bgr24 is required)
+    #         # return av.VideoFrame.from_ndarray(np.array(processed_img_pil), format="rgb24")
+
+    #         img = frame.to_ndarray(format="bgr24")  # OpenCV uses BGR
+    #         # Process the image using the model
+    #         processed_img = model.predict_frame(img)
+
+    #         # Convert back to WebRTC format
+    #         return av.VideoFrame.from_ndarray(processed_img, format="bgr24")  # Convert back to BGR
+
+
+    # # Start Webcam Streaming
+    # webrtc_streamer(
+    #     key="age-detection",
+    #     video_processor_factory=AgeDetectionProcessor,
+    #     rtc_configuration=rtc_configuration,
+    #     media_stream_constraints={"video": True, "audio": False},  # Enable video only
+    # )
+
     st.write("📷 **Turn on your webcam to detect age in real-time**")
 
-    # WebRTC Configuration (For better performance)
-    rtc_configuration = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+    # Start webcam button
+    start_button = st.button("Start Webcam")
 
-    # Define Video Processor for Webcam Streaming
-    class AgeDetectionProcessor(VideoProcessorBase):
-        def recv(self, frame):
-            # Convert frame to PIL image
-            img_pil = Image.fromarray(frame.to_ndarray(format="rgb24"))  # Convert to RGB format
+    if start_button:
+        cap = cv2.VideoCapture(0)
+        stframe = st.empty()
 
-            # Predict Age using your model
-            processed_img = model.predict_frame(np.array(img_pil))
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                st.error("Failed to capture video")
+                break
 
-            # Convert back to PIL and then NumPy
-            processed_img_pil = Image.fromarray(processed_img)
+            # Predict age for the current frame
+            frame = model.predict_frame(frame)
 
-            # Convert PIL image back to OpenCV format for WebRTC (bgr24 is required)
-            return av.VideoFrame.from_ndarray(np.array(processed_img_pil), format="rgb24")
+            # Display the frame in Streamlit
+            stframe.image(frame, channels="BGR", use_column_width=True)
 
-
-    # Start Webcam Streaming
-    webrtc_streamer(
-        key="age-detection",
-        video_processor_factory=AgeDetectionProcessor,
-        rtc_configuration=rtc_configuration,
-        media_stream_constraints={"video": True, "audio": False},  # Enable video only
-    )
+        cap.release()
+        cv2.destroyAllWindows()
