@@ -7,7 +7,6 @@ from AgeNet.models import Model
 from Facenet.models.mtcnn import MTCNN
 
 
-
 class AgeEstimator:
     def __init__(self, face_size=64, weights=None, device="cpu", tpx=500):
         self.thickness_per_pixels = tpx
@@ -94,9 +93,22 @@ class AgeEstimator:
 
         for i, box in enumerate(bboxes):
             box = np.clip(box, 0, np.inf).astype(np.uint32)
-            label = (
-                f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
-            )
+            label = f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
+
+            # Check if the person is below 18 and add "Below 18" text
+            if ages[i].item() < 18:
+                label += " (Below 18)"
+                cv.putText(
+                    ndarray_image,
+                    "Below 18",
+                    (box[0], box[1] - 10),
+                    cv.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),  # Red color
+                    2,
+                    cv.LINE_AA,
+                )
+
             self.plot_box_and_label(
                 ndarray_image,
                 max(ndarray_image.shape) // 400,
@@ -139,12 +151,24 @@ class AgeEstimator:
             box = np.clip(box, 0, np.inf).astype(np.uint32)
             thickness = max(image_shape) // 400
             thickness = int(max(np.ceil(thickness), 1))
-            label = (
-                f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
-            )
+            label = f"{'Man' if genders[i] == 0 else 'Woman'}: {ages[i].item()} years old"
+
+            # Check if the person is below 18 and add "Below 18" text
+            if ages[i].item() < 18:
+                label += " (Below 18)"
+                cv.putText(
+                    ndarray_image,
+                    "Below 18",
+                    (box[0], box[1] - 10),
+                    cv.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),  # Red color
+                    2,
+                    cv.LINE_AA,
+                )
+
             self.plot_box_and_label(
                 ndarray_image, thickness, box, label, color=(255, 0, 0)
             )
 
         return ndarray_image
-
